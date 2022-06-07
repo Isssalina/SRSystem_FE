@@ -3,7 +3,7 @@
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">Login</h3>
       </div>
 
       <el-form-item prop="username">
@@ -43,9 +43,11 @@
 
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
 
-      <div class="tips">
-        <span style="margin-right:20px;">username: admin</span>
-        <span> password: any</span>
+      <div>
+        <el-link type="primary" @click="goToRegister">Sign Up</el-link>
+      </div>
+      <div>
+        <el-link type="primary" @click="goToForget">Forget Password?</el-link>
       </div>
 
     </el-form>
@@ -53,7 +55,9 @@
 </template>
 
 <script>
-import { validUsername } from '@/utils/validate'
+import path from 'path'
+
+
 
 export default {
   name: 'Login',
@@ -74,12 +78,14 @@ export default {
     }
     return {
       loginForm: {
-        username: 'admin',
-        password: '111111'
+        username: '',
+        password: ''
       },
       loginRules: {
-        username: [{ required: true, trigger: 'blur', validator: validateUsername }],
-        password: [{ required: true, trigger: 'blur', validator: validatePassword }]
+        username: [{ required: true, trigger: "blur" }],
+        password: [
+          { required: true, trigger: "blur", validator: validatePassword },
+        ],
       },
       loading: false,
       passwordType: 'password',
@@ -95,6 +101,14 @@ export default {
     }
   },
   methods: {
+    goToRegister() {
+      this.$router.push('/register')
+    },
+
+    goToForget() {
+      this.$router.push("/forget")
+    },
+
     showPwd() {
       if (this.passwordType === 'password') {
         this.passwordType = ''
@@ -106,20 +120,54 @@ export default {
       })
     },
     handleLogin() {
-      this.$refs.loginForm.validate(valid => {
+      let that = this;
+      this.$refs.loginForm.validate((valid) => {
         if (valid) {
-          this.loading = true
-          this.$store.dispatch('user/login', this.loginForm).then(() => {
-            this.$router.push({ path: this.redirect || '/' })
-            this.loading = false
-          }).catch(() => {
-            this.loading = false
-          })
+          this.loading = true;
+          this.$store
+            .dispatch("user/login", this.loginForm)
+            .then((result) => {
+              if (result.code !== "200") {
+                if (result.code == "400") {
+                  this.$message({
+                    message: result.msg,
+                    type: "error",
+                  });
+                } else if (result.code == "401") {
+                  this.$message({
+                    message: result.msg,
+                    type: "error",
+                  });
+                } else {
+                  this.$message({
+                    message: result.msg,
+                    type: "error",
+                  });
+                }
+                this.loading = false;
+                return;
+              }
+              that.$store.state.user.username = that.loginForm.username;
+              window.localStorage.setItem("username", that.loginForm.username);
+              that.$store
+                .dispatch("user/getInfo", {
+                  username: that.loginForm.username,
+                })
+                .then((res) => {
+                  that.$nextTick(() => {
+                    that.userId = that.$store.state.user.userId;
+                  });
+                  this.loading = false;
+                });
+            })
+            .catch(() => {
+              this.loading = false;
+            });
         } else {
-          console.log('error submit!!')
-          return false
+          console.log("error submit!!");
+          return false;
         }
-      })
+      });
     }
   }
 }
